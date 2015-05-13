@@ -1,7 +1,7 @@
 debug = true
 --love.physics.setMeter(64)
 world = nil
-player = { x = 200, y = 500, speed = 150, img = nil }
+player = { x = 200, y = 500, speed = 10, img = nil }
 -- Timers
 -- We declare these here so we don't have to edit them multiple places
 canShoot = true
@@ -28,7 +28,9 @@ function love.load(arg)
     --we now have an asset ready to be used inside Love
     --bulletImg = love.graphics.newImage('assets/plane.png')
     bulletImg =  love.graphics.circle("fill", 0, 0, 10)
-
+    player.body = love.physics.newBody(world, player.x, player.y, "dynamic")
+    player.shape = love.physics.newCircleShape(10)  -- the ship's physics is the same size as the bullets
+    player.fixture = love.physics.newFixture(player.body, player.shape) 
 
     love.graphics.setColor(255,255,255)
     theGround.img = love.graphics.rectangle("fill",0,0,1000,100)
@@ -48,59 +50,15 @@ function love.update(dt)
 	if love.keyboard.isDown('escape') then
 		love.event.push('quit')
 	end
---catch diagonals first
-    if love.keyboard.isDown('left') and love.keyboard.isDown('up') then
-        if player.y > 0 then -- binds us to the map
-            player.y = player.y - (player.speed*dt)
-        end
-        if player.x > 0 then -- binds us to the map
-            player.x = player.x - (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('left') and love.keyboard.isDown('down') then
-        if player.y < (love.graphics.getHeight() - player.img:getHeight()) then -- binds us to the map
-            player.y = player.y + (player.speed*dt)
-        end
-        if player.x > 0 then -- binds us to the map
-            player.x = player.x - (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('right') and love.keyboard.isDown('up') then
-        if player.y > 0 then -- binds us to the map
-            player.y = player.y - (player.speed*dt)
-        end
-        if player.x < (love.graphics.getWidth() - player.img:getWidth()) then -- binds us to the map
-            player.x = player.x + (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('right') and love.keyboard.isDown('down') then
-        if player.y < (love.graphics.getHeight() - player.img:getHeight()) then -- binds us to the map
-            player.y = player.y + (player.speed*dt)
-        end
-        if player.x < (love.graphics.getWidth() - player.img:getWidth()) then -- binds us to the map
-            player.x = player.x + (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('left','a') then
-        if player.x > 0 then -- binds us to the map
-            player.x = player.x - (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('right','d') then
-        if player.x < (love.graphics.getWidth() - player.img:getWidth()) then
-            player.x = player.x + (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('up','w') then
-        if player.y > 0 then -- binds us to the map
-            player.y = player.y - (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('down','s') then
-        if player.y < (love.graphics.getHeight() - player.img:getHeight()) then
-            player.y = player.y + (player.speed*dt)
-        end
-    elseif love.keyboard.isDown('x') then --rotate right
+--catch rotation first
+    if love.keyboard.isDown('right') then --rotate right
         player.rotation = player.rotation + (.01 * math.pi)
         if player.rotation > math.pi then
             player.rotation = player.rotation * -1
         elseif player.rotation < (math.pi * -1)then
             player.rotation = player.rotation * -1
         end
-    elseif love.keyboard.isDown('z') then --rotate left
+    elseif love.keyboard.isDown('left') then --rotate left
         player.rotation = player.rotation - (.01 * math.pi)
         if player.rotation > math.pi then
             player.rotation = player.rotation * -1
@@ -108,36 +66,20 @@ function love.update(dt)
             player.rotation = player.rotation * -1
         end
     end
+-- handle thrust 
+    if love.keyboard.isDown('up') then -- accelerate
+       player.body:applyForce(math.sin(player.rotation) * player.speed, -1*math.cos(player.rotation) * player.speed)
+    end
+
     text = player.rotation
+
     if love.keyboard.isDown(' ', 'rctrl', 'lctrl', 'ctrl') and canShoot then
         -- Create some bullets
-        newBullet = { x = player.x , y = player.y , img = bulletImg }
+        newBullet = { x = player.body:getX() , y = player.body:getY() , img = bulletImg }
         newBullet.hasBody = false
         --translate players rotation into bullet dx/dy
-        if player.rotation > 0 and player.rotation < (math.pi/2) then --pointing up right
-
-            --newBullet.dx = bulletVel
-            --newBullet.dy = bulletVel * -1
-            newBullet.dx = math.sin(player.rotation) * bulletVel
-            newBullet.dy = math.cos(player.rotation) * bulletVel * -1
-
-
-        elseif player.rotation < 0 and player.rotation > -(math.pi/2) then --pointing up left
-            newBullet.dx = math.sin(player.rotation) * bulletVel
-            newBullet.dy = math.cos(player.rotation) * bulletVel * -1
-        elseif player.rotation > 0 and player.rotation > -(math.pi/2) then --pointing down left
-            newBullet.dx = math.sin(player.rotation) * bulletVel
-            newBullet.dy = math.cos(player.rotation) * bulletVel * -1
-        elseif player.rotation < 0 and player.rotation < -(math.pi/2) then --pointing down right
-            newBullet.dx = math.sin(player.rotation) * bulletVel
-            newBullet.dy = math.cos(player.rotation) * bulletVel * -1
-        elseif player.rotation == 0 then
-            newBullet.dx = 0
-            newBullet.dy = bulletVel * -1
-        elseif player.rotation == math.pi() then
-            newBullet.dx = 0
-            newBullet.dy = bulletVel
-        end
+        newBullet.dx = math.sin(player.rotation) * bulletVel
+        newBullet.dy = math.cos(player.rotation) * bulletVel * -1
 
         table.insert(bullets, newBullet)
         canShoot = false
@@ -164,13 +106,13 @@ function love.update(dt)
 
 end
 
-function love.draw(dt)
+function love.draw()
 
     love.graphics.setColor(255, 255, 255)
     love.graphics.print(text, 0, 0 )
     --love.graphics.print(angXText, 100, 0)
     --love.graphics.print(angYText, 300, 0)
-    love.graphics.draw(player.img, player.x, player.y, player.rotation, 1, 1, player.img:getWidth()/2, player.img:getHeight()/2)
+    love.graphics.draw(player.img, player.body:getX(), player.body:getY(), player.rotation, 1, 1, player.img:getWidth()/2, player.img:getHeight()/2)
     love.graphics.setColor(72, 160, 14)
     love.graphics.polygon("fill", theGround.body:getWorldPoints(theGround.shape:getPoints()))
     --love.graphics.draw(theGround.img, 100, 100)
@@ -182,7 +124,7 @@ function love.draw(dt)
         if bullet.hasBody == false then
             love.graphics.setColor(0, 0, 255)
             bullet.body = love.physics.newBody(world, bullet.x, bullet.y, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
-            bullet.shape = love.physics.newCircleShape(10) --the ball's shape has a radius of 20
+            bullet.shape = love.physics.newCircleShape(5) --the ball's shape has a radius of 20
             bullet.fixture = love.physics.newFixture(bullet.body, bullet.shape, 1) -- Attach fixture to body and give it a density of 1.
             bullet.fixture:setRestitution(0.9) --let the ball bounce
             bullet.hasBody = true
