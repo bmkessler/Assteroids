@@ -1,25 +1,29 @@
-debug = true
+function love.load(arg)
+    debug = true
+-- setup the playing window
+    height = 600
+    width = 800
+    love.window.setMode(width,height)
 --love.physics.setMeter(64)
-world = nil
-player = { x = 200, y = 500, speed = 10, img = nil }
+    world = nil
+    player = { x = 200, y = 500, speed = 10, img = nil }
 -- Timers
 -- We declare these here so we don't have to edit them multiple places
-canShoot = true
-canShootTimerMax = 0.2
-canShootTimer = canShootTimerMax
-text = math.sin(.2)
-angXText = math.cos(.25)
-angYText = math.sin(.25)
+    canShoot = true
+    canShootTimerMax = 0.2
+    canShootTimer = canShootTimerMax
+    text = math.sin(.2)
+    angXText = math.cos(.25)
+    angYText = math.sin(.25)
 -- Image Storage
-bulletImg = nil
-bulletVel = 50
-bulletVelX = 0
-bulletVelY = 0
-theGround = {}
+    bulletImg = nil
+    bulletVel = 500
+    bulletVelX = 0
+    bulletVelY = 0
+    theGround = {}
 -- Entity Storage
-bullets = {} -- array of current bullets being drawn and updated
+    bullets = {} -- array of current bullets being drawn and updated
 
-function love.load(arg)
     love.physics.setMeter(64)
     world = love.physics.newWorld(0, 0, true)
 
@@ -46,10 +50,6 @@ end
 
 function love.update(dt)
     world:update(dt)
-    	-- I always start with an easy way to exit the game
-	if love.keyboard.isDown('escape') then
-		love.event.push('quit')
-	end
 --catch rotation first
     if love.keyboard.isDown('right') then --rotate right
         player.rotation = player.rotation + (.01 * math.pi)
@@ -75,44 +75,40 @@ function love.update(dt)
 
     if love.keyboard.isDown(' ', 'rctrl', 'lctrl', 'ctrl') and canShoot then
         -- Create some bullets
-        newBullet = { x = player.body:getX() , y = player.body:getY() , img = bulletImg }
-        newBullet.hasBody = false
+        bullet = { x = player.body:getX() , y = player.body:getY() , img = bulletImg }
+       --bullet.hasBody = false
         --translate players rotation into bullet dx/dy
-        newBullet.dx = math.sin(player.rotation) * bulletVel
-        newBullet.dy = math.cos(player.rotation) * bulletVel * -1
+        bullet.dx = math.sin(player.rotation) * bulletVel
+        bullet.dy = math.cos(player.rotation) * bulletVel * -1
+        pdx, pdy = player.body:getLinearVelocity( )
+        bullet.body = love.physics.newBody(world, bullet.x+math.sin(player.rotation)*dt, bullet.y-math.cos(player.rotation)*dt, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
+        bullet.shape = love.physics.newCircleShape(5) --the ball's shape has a radius of 20
+        bullet.fixture = love.physics.newFixture(bullet.body, bullet.shape, 1) -- Attach fixture to body and give it a density of 1.
+        bullet.body:setBullet(true)  -- make sure it won't go through things
+        bullet.fixture:setRestitution(0.9) --let the ball bounce
 
-        table.insert(bullets, newBullet)
+        bullet.body:setLinearVelocity(bullet.dx, bullet.dy)
+
+        table.insert(bullets, bullet)
         canShoot = false
         canShootTimer = canShootTimerMax
     end
     -- Time out how far apart our shots can be.
-    canShootTimer = canShootTimer - (1 * dt)
-    if canShootTimer < 0 then
+    if canShootTimer > 0 then
+      canShootTimer = canShootTimer - (1 * dt)
+    else
       canShoot = true
     end
-
-    for i, bullet in ipairs(bullets) do
-        --bullet.y = bullet.y - (250 * dt)
-
-        if bullet.hasBody == true then
-            bullet.body:applyForce(bullet.dx, bullet.dy)
-            --text = "Force Applied"
-            --love.graphics.print( "Force applied", 100, 100 )
-        end
-        if bullet.y < 0 then -- remove bullets when they pass off the screen
-            table.remove(bullets, i)
-        end
-    end
-
+  wrapScreen()
 end
 
 function love.draw()
 
     love.graphics.setColor(255, 255, 255)
-    love.graphics.print(text, 0, 0 )
     --love.graphics.print(angXText, 100, 0)
     --love.graphics.print(angYText, 300, 0)
     love.graphics.draw(player.img, player.body:getX(), player.body:getY(), player.rotation, 1, 1, player.img:getWidth()/2, player.img:getHeight()/2)
+    love.graphics.print(text, 0, 0 )
     love.graphics.setColor(72, 160, 14)
     love.graphics.polygon("fill", theGround.body:getWorldPoints(theGround.shape:getPoints()))
     --love.graphics.draw(theGround.img, 100, 100)
@@ -121,26 +117,35 @@ function love.draw()
         --theGround.drawn = true
     --end
     for i, bullet in ipairs(bullets) do
-        if bullet.hasBody == false then
-            love.graphics.setColor(0, 0, 255)
-            bullet.body = love.physics.newBody(world, bullet.x, bullet.y, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
-            bullet.shape = love.physics.newCircleShape(5) --the ball's shape has a radius of 20
-            bullet.fixture = love.physics.newFixture(bullet.body, bullet.shape, 1) -- Attach fixture to body and give it a density of 1.
-            bullet.fixture:setRestitution(0.9) --let the ball bounce
-            bullet.hasBody = true
-            love.graphics.circle("fill", bullet.body:getX(), bullet.body:getY(), bullet.shape:getRadius())
-
-        elseif i % 2 == 1 then
-            --love.graphics.setColor(255, 255, 255)
-            --love.graphics.circle("fill", bullet.x, bullet.y, 10, 100)
+        if i % 2 == 1 then
+            love.graphics.setColor(255, 255, 255)
             love.graphics.circle("fill", bullet.body:getX(), bullet.body:getY(), bullet.shape:getRadius())
         else
+            love.graphics.setColor(255, 0, 0)
             love.graphics.circle("fill", bullet.body:getX(), bullet.body:getY(), bullet.shape:getRadius())
-            --love.graphics.setColor(255, 0, 0)
-            --love.graphics.circle("fill", bullet.x, bullet.y, 10, 100)
-            --love.graphics.draw(bullet.img, bullet.x, bullet.y)
         end
 
     end
 
+end
+
+function love.keypressed(key)
+   if key == 'escape' then
+      love.event.push('quit')
+   end
+end
+
+function wrapScreen()
+  px = player.body:getX()
+  py = player.body:getY()
+  if px>width then
+    player.body:setX(px-width)
+  elseif px<0 then
+    player.body:setX(px+width)
+  end
+    if py>height then
+    player.body:setY(py-height)
+  elseif py<0 then
+    player.body:setY(py+height)
+  end
 end
