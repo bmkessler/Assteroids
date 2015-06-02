@@ -18,6 +18,7 @@ function love.load(arg)
 
     love.physics.setMeter(64)
     world = love.physics.newWorld(0, 0, true)
+    world:setCallbacks(beginContact, endContact)
 
     player = { x = 200, y = 500, speed = 10, img = nil, r = 10 }
     player.img = love.graphics.newImage('assets/ship.png')
@@ -27,11 +28,11 @@ function love.load(arg)
     player.fixture = love.physics.newFixture(player.body, player.shape) 
     player.fixture:setUserData("player")
 
-    theGround = {}
-    theGround.img = love.graphics.rectangle("fill",0,0,1000,100)
-    theGround.body = love.physics.newBody(world, 0, 50) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    theGround.shape = love.physics.newRectangleShape(1600, 50) --make a rectangle with a width of 650 and a height of 50
-    theGround.fixture = love.physics.newFixture(theGround.body, theGround.shape) --attach shape to body
+--    theGround = {}
+--    theGround.img = love.graphics.rectangle("fill",0,0,1000,100)
+--    theGround.body = love.physics.newBody(world, 0, 50) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+--    theGround.shape = love.physics.newRectangleShape(1600, 50) --make a rectangle with a width of 650 and a height of 50
+--    theGround.fixture = love.physics.newFixture(theGround.body, theGround.shape) --attach shape to body
 
     bullets = {} -- array of current bullets being drawn and updated
     bulletImg =  love.graphics.circle("fill", 0, 0, 10) -- not being used
@@ -46,6 +47,8 @@ function love.update(dt)
     applyThrust()
     shootBullets(dt)
     generateAsteroid(dt)
+    removeHitBullets()
+    removeHitRoids()
     wrapScreen()
 end
 
@@ -55,7 +58,7 @@ function love.draw()
     love.graphics.draw(player.img, player.body:getX(), player.body:getY(), player.rotation, 1, 1, player.img:getWidth()/2, player.img:getHeight()/2)
     love.graphics.print(text, 0, 0 )
     love.graphics.setColor(72, 160, 14)
-    love.graphics.polygon("fill", theGround.body:getWorldPoints(theGround.shape:getPoints()))
+--    love.graphics.polygon("fill", theGround.body:getWorldPoints(theGround.shape:getPoints()))
     for i, bullet in ipairs(bullets) do
         if i % 2 == 1 then
             love.graphics.setColor(255, 255, 255)
@@ -170,3 +173,36 @@ function wrapScreen()
     player.body:setY(py+height)
   end
 end
+
+function removeHitBullets()
+  for i,v in ipairs(bullets) do
+    if v.fixture:getUserData() == "hit" then
+      v.body:destroy()
+      table.remove(bullets,i)
+    end
+  end
+end
+
+function removeHitRoids()
+  for i,v in ipairs(assteroids) do
+    if v.fixture:getUserData() == "hit" then
+      v.body:destroy()
+      table.remove(assteroids,i)
+    end
+  end
+end
+
+function beginContact(a, b, coll)
+      -- blop:play()
+end
+
+function endContact(a, b, coll)
+  if a:getUserData()=='bullet' and b:getUserData()=='assteroid' then
+    a:setUserData("hit")
+    b:setUserData("hit")
+  elseif b:getUserData()=='bullet' and a:getUserData()=='assteroid' then
+    a:setUserData("hit")
+    b:setUserData("hit")
+  end
+end
+
